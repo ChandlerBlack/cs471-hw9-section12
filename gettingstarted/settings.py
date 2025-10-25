@@ -56,6 +56,7 @@ ALLOWED_HOSTS_ENV = os.environ.get("ALLOWED_HOSTS")
 
 if ALLOWED_HOSTS_ENV:
     # Use the environment variable if it exists
+    cleaned_env = ALLOWED_HOSTS_ENV.strip().strip("'").strip('"')
     ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS_ENV.split(",") if h.strip()]
     # Ensure SSL is enabled in production when hosts are set via ENV
     SECURE_SSL_REDIRECT = os.environ.get("ENVIRONMENT") == "production"
@@ -64,7 +65,7 @@ elif IS_HEROKU_APP:
     ALLOWED_HOSTS = ["*"]
     SECURE_SSL_REDIRECT = True
 else:
-    # Local/dev fallback
+    # Local/dev fallback    
     ALLOWED_HOSTS = [".localhost", "127.0.0.1", "[::1]", "0.0.0.0", "[::]"]
 
 
