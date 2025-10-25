@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+  <div class="container">
+
+
+<h2>Page View Report</h2>
+
+
+<ul>
+
+{% for greeting in greetings %}
+    <li>{{ greeting.when }}</li>
+{% endfor %}
+
+</ul>
+
+</div>
+
+<div class="container">
+  <h2>Request Records (timestamp + token)</h2>
+  <ul>
+  {% for r in records %}
+    <li>{{ r.when }} &mdash; {{ r.token }}</li>
+  {% empty %}
+    <li>No request records yet.</li>
+  {% endfor %}
+  </ul>
+
+</div>
+
+<div class="container">
+  <h2>SQL Request Records (timestamp + random string)</h2>
+  <ul>
+  {% for r in sql_records %}
+    <li>{{ r.when }} &mdash; {{ r.random_string }}</li>
+  {% empty %}
+    <li>No SQL request records yet.</li>
+  {% endfor %}
+  </ul>
+
+</div>
+
+{% endblock %}
