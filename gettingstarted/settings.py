@@ -46,28 +46,19 @@ SECRET_KEY = os.environ.get(
 # SECURITY WARNING: Don't run with debug turned on in production!
 DEBUG = os.environ.get("ENVIRONMENT") == "development"
 
-# The `DYNO` env var is set on Heroku CI, but it's not a real Heroku app, so we have to
-# also explicitly exclude CI:
-# https://devcenter.heroku.com/articles/heroku-ci#immutable-environment-variables
+# The `DYNO` env var is set on Heroku CI. Detect Heroku-like environments but do not rely only on it
+# for configuration on other hosting platforms (eg. Railway). Use env vars for overrides.
 IS_HEROKU_APP = "DYNO" in os.environ and "CI" not in os.environ
 
-if IS_HEROKU_APP:
-    # On Heroku, it's safe to use a wildcard for `ALLOWED_HOSTS`, since the Heroku router performs
-    # validation of the Host header in the incoming HTTP request. On other platforms you may need to
-    # list the expected hostnames explicitly in production to prevent HTTP Host header attacks. See:
-    # https://docs.djangoproject.com/en/5.2/ref/settings/#std-setting-ALLOWED_HOSTS
+# Allow configuring ALLOWED_HOSTS from the environment (comma-separated). This is useful on
+# platforms like Railway where `DYNO` is not set but a `DATABASE_URL` is provided.
+ALLOWED_HOSTS_ENV = os.environ.get("ALLOWED_HOSTS")
+if ALLOWED_HOSTS_ENV:
+    ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS_ENV.split(",") if h.strip()]
+elif IS_HEROKU_APP:
+    # On Heroku, it's safe to use a wildcard for `ALLOWED_HOSTS` as the platform validates Host.
     ALLOWED_HOSTS = ["*"]
-
-    # Redirect all non-HTTPS requests to HTTPS. This requires that:
-    # 1. Your app has a TLS/SSL certificate, which all `*.herokuapp.com` domains do by default.
-    #    When using a custom domain, you must configure one. See:
-    #    https://devcenter.heroku.com/articles/automated-certificate-management
-    # 2. Your app's WSGI web server is configured to use the `X-Forwarded-Proto` headers set by
-    #    the Heroku Router (otherwise you may encounter infinite HTTP 301 redirects). See this
-    #    app's `gunicorn.conf.py` for how this is done when using gunicorn.
-    #
-    # For maximum security, consider enabling HTTP Strict Transport Security (HSTS) headers too:
-    # https://docs.djangoproject.com/en/5.2/ref/middleware/#http-strict-transport-security
+    # Redirect non-HTTPS to HTTPS in Heroku-like production environments.
     SECURE_SSL_REDIRECT = True
 else:
     ALLOWED_HOSTS = [".localhost", "127.0.0.1", "[::1]", "0.0.0.0", "[::]"]
@@ -133,12 +124,22 @@ WSGI_APPLICATION = "gettingstarted.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-if IS_HEROKU_APP:
-    # In production on Heroku the database configuration is derived from the `DATABASE_URL`
-    # environment variable by the dj-database-url package. `DATABASE_URL` will be set
-    # automatically by Heroku when a database addon is attached to your Heroku app. See:
-    # https://devcenter.heroku.com/articles/provisioning-heroku-postgres#application-config-vars
-    # https://github.com/jazzband/dj-database-url
+# Database
+# Priority: explicit DATABASE_URL env var (Railway/Heroku), then Heroku-like DYNO fallback,
+# otherwise fallback to local sqlite for development and CI.
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if DATABASE_URL:
+    DATABASES = {
+        "default": dj_database_url.config(
+            env="DATABASE_URL",
+            conn_max_age=600,
+            conn_health_checks=True,
+            ssl_require=True,
+        )
+    }
+elif IS_HEROKU_APP:
+    # If running on Heroku and DATABASE_URL wasn't explicitly present in env for some reason,
+    # attempt to configure from the environment (this mirrors previous behavior).
     DATABASES = {
         "default": dj_database_url.config(
             env="DATABASE_URL",
@@ -148,8 +149,7 @@ if IS_HEROKU_APP:
         ),
     }
 else:
-    # When running locally in development or in CI, a sqlite database file will be used instead
-    # to simplify initial setup. Longer term it's recommended to use Postgres locally too.
+    # Local/dev fallback to sqlite to simplify setup for students / CI.
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
