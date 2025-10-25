@@ -53,14 +53,18 @@ IS_HEROKU_APP = "DYNO" in os.environ and "CI" not in os.environ
 # Allow configuring ALLOWED_HOSTS from the environment (comma-separated). This is useful on
 # platforms like Railway where `DYNO` is not set but a `DATABASE_URL` is provided.
 ALLOWED_HOSTS_ENV = os.environ.get("ALLOWED_HOSTS")
+
 if ALLOWED_HOSTS_ENV:
+    # Use the environment variable if it exists
     ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS_ENV.split(",") if h.strip()]
+    # Ensure SSL is enabled in production when hosts are set via ENV
+    SECURE_SSL_REDIRECT = os.environ.get("ENVIRONMENT") == "production"
 elif IS_HEROKU_APP:
-    # On Heroku, it's safe to use a wildcard for `ALLOWED_HOSTS` as the platform validates Host.
+    # Existing Heroku fallback logic
     ALLOWED_HOSTS = ["*"]
-    # Redirect non-HTTPS to HTTPS in Heroku-like production environments.
     SECURE_SSL_REDIRECT = True
 else:
+    # Local/dev fallback
     ALLOWED_HOSTS = [".localhost", "127.0.0.1", "[::1]", "0.0.0.0", "[::]"]
 
 
