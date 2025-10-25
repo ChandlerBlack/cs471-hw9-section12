@@ -50,22 +50,21 @@ DEBUG = os.environ.get("ENVIRONMENT") == "development"
 # for configuration on other hosting platforms (eg. Railway). Use env vars for overrides.
 IS_HEROKU_APP = "DYNO" in os.environ and "CI" not in os.environ
 
-# Allow configuring ALLOWED_HOSTS from the environment (comma-separated). This is useful on
-# platforms like Railway where `DYNO` is not set but a `DATABASE_URL` is provided.
 ALLOWED_HOSTS_ENV = os.environ.get("ALLOWED_HOSTS")
 
 if ALLOWED_HOSTS_ENV:
-    # Use the environment variable if it exists
+    # Use the environment variable if it exists (allows * for wildcard)
     cleaned_env = ALLOWED_HOSTS_ENV.strip().strip("'").strip('"')
-    ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS_ENV.split(",") if h.strip()]
+    ALLOWED_HOSTS = [h.strip() for h in cleaned_env.split(",") if h.strip()]
+    
     # Ensure SSL is enabled in production when hosts are set via ENV
     SECURE_SSL_REDIRECT = os.environ.get("ENVIRONMENT") == "production"
 elif IS_HEROKU_APP:
-    # Existing Heroku fallback logic
+    # Retain the original Heroku wildcard fallback
     ALLOWED_HOSTS = ["*"]
     SECURE_SSL_REDIRECT = True
 else:
-    # Local/dev fallback    
+    # Local/dev fallback
     ALLOWED_HOSTS = [".localhost", "127.0.0.1", "[::1]", "0.0.0.0", "[::]"]
 
 
@@ -256,3 +255,8 @@ LOGGING = {
         },
     },
 }
+
+# Critical for platforms like Railway/Heroku behind a proxy.
+# Forces Django to trust the HTTP_X_FORWARDED_HOST header.
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
