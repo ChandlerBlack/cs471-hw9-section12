@@ -50,19 +50,18 @@ DEBUG = os.environ.get("ENVIRONMENT") == "development"
 # for configuration on other hosting platforms (eg. Railway). Use env vars for overrides.
 IS_HEROKU_APP = "DYNO" in os.environ and "CI" not in os.environ
 
-ALLOWED_HOSTS_ENV = os.environ.get("ALLOWED_HOSTS")
+# --- FINAL AGGRESSIVE ALLOWED_HOSTS FIX ---
+IS_PRODUCTION = os.environ.get("ENVIRONMENT") == "production"
 
-if ALLOWED_HOSTS_ENV:
-    # Use the environment variable if it exists (allows * for wildcard)
-    cleaned_env = ALLOWED_HOSTS_ENV.strip().strip("'").strip('"')
-    ALLOWED_HOSTS = [h.strip() for h in cleaned_env.split(",") if h.strip()]
-    
-    # Ensure SSL is enabled in production when hosts are set via ENV
-    SECURE_SSL_REDIRECT = os.environ.get("ENVIRONMENT") == "production"
-elif IS_HEROKU_APP:
-    # Retain the original Heroku wildcard fallback
+if IS_PRODUCTION:
+    # 1. Use a guaranteed wildcard if in production. This overrides any failure to read
+    #    the specific domain name from the environment variable.
     ALLOWED_HOSTS = ["*"]
-    SECURE_SSL_REDIRECT = True
+    
+    # 2. Add necessary proxy settings for Railway
+    USE_X_FORWARDED_HOST = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = True # Railway forces HTTPS anyway
 else:
     # Local/dev fallback
     ALLOWED_HOSTS = [".localhost", "127.0.0.1", "[::1]", "0.0.0.0", "[::]"]
